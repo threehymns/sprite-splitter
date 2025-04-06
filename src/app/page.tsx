@@ -12,7 +12,7 @@ import MainContent from "@/components/MainContent";
 
 
 export default function HomePage() {
-  const { imageRef, imageUrl, setImageUrl, loadImage } = useImageLoader();
+  const { imageRef, imageUrl, setImageUrl, loadImage, isImageLoaded } = useImageLoader();
   const {
     cellWidth,
     cellHeight,
@@ -30,7 +30,7 @@ export default function HomePage() {
     setRows,
     setColumns,
     handleDownloadZip,
-  } = useSpriteSlicer({ imageRef, imageUrl });
+  } = useSpriteSlicer({ imageRef, imageUrl, isImageLoaded });
 
   const bgContainerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);

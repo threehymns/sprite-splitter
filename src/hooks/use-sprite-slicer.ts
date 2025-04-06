@@ -1,6 +1,25 @@
 import { useState } from "react";
-import { useDebounce } from "react-use";
 import JSZip from "jszip";
+
+declare global {
+  interface Window {
+    _sliceImageDebounce?: {
+      timeout: ReturnType<typeof setTimeout> | null;
+      lastResult: string[];
+      lastArgs: {
+        img: HTMLImageElement;
+        cellWidth: number;
+        cellHeight: number;
+        offsetX: number;
+        offsetY: number;
+        marginX: number;
+        marginY: number;
+        rows: number;
+        columns: number;
+      } | null;
+    };
+  }
+}
 /**
  * Calculate the size of each cell in the sprite sheet.
  */
@@ -31,38 +50,87 @@ export function sliceImage(
   marginX: number,
   marginY: number,
   rows: number,
-  columns: number
-): string[] {
-  const slices: string[] = [];
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d")!;
+  columns: number,
+  onSlicesReady: (slices: string[]) => void
+): void {
+  type SliceArgs = {
+    img: HTMLImageElement;
+    cellWidth: number;
+    cellHeight: number;
+    offsetX: number;
+    offsetY: number;
+    marginX: number;
+    marginY: number;
+    rows: number;
+    columns: number;
+    onSlicesReady: (slices: string[]) => void;
+  };
 
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < columns; col++) {
-      const x = marginX + offsetX + col * cellWidth;
-      const y = marginY + offsetY + row * cellHeight;
+  const debounceTime = 100;
+  if (!window._sliceImageDebounce) {
+    window._sliceImageDebounce = {
+      timeout: null,
+      lastResult: [],
+      lastArgs: null,
+    };
+  }
+  const state = window._sliceImageDebounce as {
+    timeout: ReturnType<typeof setTimeout> | null;
+    lastResult: string[];
+    lastArgs: SliceArgs | null;
+  };
 
-      canvas.width = cellWidth;
-      canvas.height = cellHeight;
+  state.lastArgs = {
+    img,
+    cellWidth,
+    cellHeight,
+    offsetX,
+    offsetY,
+    marginX,
+    marginY,
+    rows,
+    columns,
+    onSlicesReady,
+  };
 
-      ctx.clearRect(0, 0, cellWidth, cellHeight);
-      ctx.drawImage(
-        img,
-        x,
-        y,
-        cellWidth,
-        cellHeight,
-        0,
-        0,
-        cellWidth,
-        cellHeight
-      );
-
-      slices.push(canvas.toDataURL());
-    }
+  if (state.timeout) {
+    clearTimeout(state.timeout);
   }
 
-  return slices;
+  state.timeout = setTimeout(() => {
+    const args = state.lastArgs!;
+    const slices: string[] = [];
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d")!;
+
+    for (let row = 0; row < args.rows; row++) {
+      for (let col = 0; col < args.columns; col++) {
+        const x = args.marginX + args.offsetX + col * args.cellWidth;
+        const y = args.marginY + args.offsetY + row * args.cellHeight;
+
+        canvas.width = args.cellWidth;
+        canvas.height = args.cellHeight;
+
+        ctx.clearRect(0, 0, args.cellWidth, args.cellHeight);
+        ctx.drawImage(
+          args.img,
+          x,
+          y,
+          args.cellWidth,
+          args.cellHeight,
+          0,
+          0,
+          args.cellWidth,
+          args.cellHeight
+        );
+
+        slices.push(canvas.toDataURL());
+      }
+    }
+
+    state.lastResult = slices;
+    args.onSlicesReady(slices);
+  }, debounceTime);
 }
 
 export async function downloadSlicesAsZip(slices: string[]): Promise<void> {
@@ -85,9 +153,10 @@ export async function downloadSlicesAsZip(slices: string[]): Promise<void> {
 interface UseSpriteSlicerProps {
   imageRef: React.RefObject<HTMLImageElement | null>;
   imageUrl: string | null;
+  isImageLoaded: boolean;
 }
 
-export function useSpriteSlicer({ imageRef, imageUrl }: UseSpriteSlicerProps) {
+export function useSpriteSlicer({ imageRef, imageUrl, isImageLoaded }: UseSpriteSlicerProps) {
   const [cellWidth, setCellWidth] = useState<number>(32);
   const [cellHeight, setCellHeight] = useState<number>(32);
   const [offsetX, setOffsetX] = useState<number>(0);
@@ -148,40 +217,36 @@ export function useSpriteSlicer({ imageRef, imageUrl }: UseSpriteSlicerProps) {
     await downloadSlicesAsZip(slices);
   };
 
-  useDebounce(
-    () => {
-      if (!imageRef.current || !rows || !columns) return;
-      if (!(imageRef.current instanceof HTMLImageElement)) return;
+  // Immediate update of cell size without debounce
+  if (imageRef.current && rows && columns && imageRef.current instanceof HTMLImageElement) {
+    const img = imageRef.current;
+    const { cellWidth: w, cellHeight: h } = calculateCellSize(
+      img.width,
+      img.height,
+      marginX,
+      marginY,
+      columns,
+      rows
+    );
+    if (cellWidth !== w) setCellWidth(w);
+    if (cellHeight !== h) setCellHeight(h);
+  }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  if (!isImageLoaded && slices.length !== 0) {
+    setSlices([]);
+  }
+  // dependencies: imageUrl, rows, columns, cellWidth, cellHeight, offsetX, offsetY, marginX, marginY, isImageLoaded, imageRef
+  // Immediate update of slices without debounce; debounce is inside sliceImage
+  if (isImageLoaded) {
+    if (!imageRef.current || !rows || !columns) {
+      if (slices.length !== 0) setSlices([]);
+    } else if (!(imageRef.current instanceof HTMLImageElement)) {
+      if (slices.length !== 0) setSlices([]);
+    } else {
       const img = imageRef.current;
-      const { cellWidth: w, cellHeight: h } = calculateCellSize(
-        img.width,
-        img.height,
-        marginX,
-        marginY,
-        columns,
-        rows
-      );
-      setCellWidth(w);
-      setCellHeight(h);
-    },
-    100,
-    [imageUrl, rows, columns, marginX, marginY]
-  );
 
-  useDebounce(
-    () => {
-      if (!imageRef.current || !rows || !columns) {
-        setSlices([]);
-        return;
-      }
-      if (!(imageRef.current instanceof HTMLImageElement)) {
-        setSlices([]);
-        return;
-      }
-
-      const img = imageRef.current;
-      const newSlices = sliceImage(
+      sliceImage(
         img,
         cellWidth,
         cellHeight,
@@ -190,13 +255,13 @@ export function useSpriteSlicer({ imageRef, imageUrl }: UseSpriteSlicerProps) {
         marginX,
         marginY,
         rows,
-        columns
+        columns,
+        (newSlices) => {
+          setSlices(newSlices);
+        }
       );
-      setSlices(newSlices);
-    },
-    100,
-    [imageUrl, cellWidth, cellHeight, offsetX, offsetY, marginX, marginY, rows, columns]
-  );
+    }
+  }
 
   return {
     cellWidth,

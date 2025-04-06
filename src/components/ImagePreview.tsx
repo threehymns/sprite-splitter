@@ -16,7 +16,7 @@ interface ImagePreviewProps {
   marginY?: number;
 }
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const ImagePreview: React.FC<ImagePreviewProps> = ({
   canvasRef,
@@ -34,6 +34,14 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
 }) => {
   const { theme } = useTheme();
 
+  const dpr = window.devicePixelRatio || 1;
+
+  const dashOffsetRef = useRef(0);
+  const animationFrameRef = useRef<number | null>(null);
+  const staticCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+
+  // Draw static content once when dependencies change
   useEffect(() => {
     if (
       !imageRef?.current ||
@@ -50,98 +58,160 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
     }
 
     const img = imageRef.current;
+
+    // Skip rendering if image not loaded yet
+    if (!img.width || !img.height) {
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const draw = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
+    // Handle high DPI displays
+    const dpr = window.devicePixelRatio || 1;
 
-      // Fill canvas background with bg-muted color
-      if (bgContainerRef.current) {
-        const bgColor = theme === "dark" ? "#1e1e1e" : "#f9f9f9";
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.fillStyle = bgColor;
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+    // Resize canvas for high DPI
+    canvas.width = img.width * dpr;
+    canvas.height = img.height * dpr;
+
+    // Create or resize offscreen static canvas
+    if (!staticCanvasRef.current) {
+      staticCanvasRef.current = document.createElement("canvas");
+    }
+    const staticCanvas = staticCanvasRef.current;
+    staticCanvas.width = img.width * dpr;
+    staticCanvas.height = img.height * dpr;
+    // No need to set style size for offscreen canvas
+
+    const staticCtx = staticCanvas.getContext("2d");
+    if (!staticCtx) return;
+
+    // Do not scale static canvas context; instead scale drawing operations manually for high DPI
+    staticCtx.fillStyle = "rgba(0,0,0,0)";
+    staticCtx.fillRect(0, 0, staticCanvas.width, staticCanvas.height);
+
+    // Draw image
+    staticCtx.drawImage(img, 0, 0, img.width * dpr, img.height * dpr);
+
+    // Do NOT draw the dashed grid here anymore.
+    // The animated dashed grid will be drawn in the animation loop only.
+
+    // Draw outer rounded rectangle border
+    const borderX = (marginX + offsetX) * dpr;
+    const borderY = (marginY + offsetY) * dpr;
+
+    const totalGridWidth = columns * cellWidth;
+    const totalGridHeight = rows * cellHeight;
+
+    const borderWidth = totalGridWidth * dpr;
+    const borderHeight = totalGridHeight * dpr;
+    const radius = 20 * dpr;
+
+    staticCtx.strokeStyle = theme === "dark" ? "#fff" : "#000";
+    staticCtx.lineWidth = 1 * dpr;
+    staticCtx.setLineDash([]);
+
+    staticCtx.beginPath();
+    if (typeof staticCtx.roundRect === "function") {
+      staticCtx.roundRect(borderX, borderY, borderWidth, borderHeight, radius);
+    } else {
+      const r = radius;
+      staticCtx.moveTo(borderX + r, borderY);
+      staticCtx.lineTo(borderX + borderWidth - r, borderY);
+      staticCtx.quadraticCurveTo(borderX + borderWidth, borderY, borderX + borderWidth, borderY + r);
+      staticCtx.lineTo(borderX + borderWidth, borderY + borderHeight - r);
+      staticCtx.quadraticCurveTo(borderX + borderWidth, borderY + borderHeight, borderX + borderWidth - r, borderY + borderHeight);
+      staticCtx.lineTo(borderX + r, borderY + borderHeight);
+      staticCtx.quadraticCurveTo(borderX, borderY + borderHeight, borderX, borderY + borderHeight - r);
+      staticCtx.lineTo(borderX, borderY + r);
+      staticCtx.quadraticCurveTo(borderX, borderY, borderX + r, borderY);
+    }
+    staticCtx.stroke();
+
+    // Cache main canvas context
+    const ctx = canvas.getContext("2d");
+    // Do not scale main canvas context; scale drawing operations manually
+    ctxRef.current = ctx;
+  }, [imageUrl, rows, columns, cellWidth, cellHeight, offsetX, offsetY, marginX, marginY, theme, imageRef, bgContainerRef, canvasRef]);
+
+  // Animate dashed overlay
+  useEffect(() => {
+    const animate = () => {
+      const ctx = ctxRef.current;
+      const staticCanvas = staticCanvasRef.current;
+      if (!ctx || !staticCanvas) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+        return;
       }
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      // Draw static content first
+      ctx.clearRect(0, 0, staticCanvas.width, staticCanvas.height);
+      ctx.drawImage(staticCanvas, 0, 0);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
-
+      // Animate dashed grid overlay
       ctx.save();
       ctx.strokeStyle = theme === "dark" ? "white" : "black";
-      ctx.lineWidth = 1;
-      ctx.setLineDash([8, 8]); // dashed lines
+      ctx.lineWidth = 1 * dpr;
+      ctx.setLineDash([8 * dpr, 8 * dpr]);
+      dashOffsetRef.current = (dashOffsetRef.current + 0.2 * dpr) % (16 * dpr);
+      ctx.lineDashOffset = dashOffsetRef.current;
 
-      // Define clipping region matching the grid area
-      const clipX = marginX + offsetX;
-      const clipY = marginY + offsetY;
-      const clipWidth = columns * cellWidth;
-      const clipHeight = rows * cellHeight;
+      const marginXVal = (Number.isFinite(Number(marginX)) ? Number(marginX) : 0) * dpr;
+      const marginYVal = (Number.isFinite(Number(marginY)) ? Number(marginY) : 0) * dpr;
+      const offsetXVal = (Number.isFinite(Number(offsetX)) ? Number(offsetX) : 0) * dpr;
+      const offsetYVal = (Number.isFinite(Number(offsetY)) ? Number(offsetY) : 0) * dpr;
 
-      ctx.save();
+      const cellWidthRaw = Number.isFinite(Number(cellWidth)) ? Number(cellWidth) : 0;
+      const cellHeightRaw = Number.isFinite(Number(cellHeight)) ? Number(cellHeight) : 0;
+      const columnsVal = Number.isFinite(Number(columns)) ? Number(columns) : 0;
+      const rowsVal = Number.isFinite(Number(rows)) ? Number(rows) : 0;
+
+      const totalGridWidth = columnsVal * cellWidthRaw;
+      const totalGridHeight = rowsVal * cellHeightRaw;
+
+      const cellWidthVal = cellWidthRaw * dpr;
+      const cellHeightVal = cellHeightRaw * dpr;
+      const totalGridWidthScaled = totalGridWidth * dpr;
+      const totalGridHeightScaled = totalGridHeight * dpr;
+
+      const clipX = marginXVal + offsetXVal;
+      const clipY = marginYVal + offsetYVal;
+      const clipWidth = totalGridWidthScaled;
+      const clipHeight = totalGridHeightScaled;
+
       ctx.beginPath();
       ctx.rect(clipX, clipY, clipWidth, clipHeight);
       ctx.clip();
 
-      for (let i = 1; i < columns; i++) {
-        const x = marginX + offsetX + i * cellWidth;
+      for (let i = 1; i < columnsVal; i++) {
+        const x = marginXVal + offsetXVal + i * cellWidthVal;
         ctx.beginPath();
         ctx.moveTo(x, clipY);
         ctx.lineTo(x, clipY + clipHeight);
         ctx.stroke();
       }
 
-      for (let i = 1; i < rows; i++) {
-        const y = marginY + offsetY + i * cellHeight;
+      for (let i = 1; i < rowsVal; i++) {
+        const y = marginYVal + offsetYVal + i * cellHeightVal;
         ctx.beginPath();
         ctx.moveTo(clipX, y);
         ctx.lineTo(clipX + clipWidth, y);
         ctx.stroke();
       }
 
-      ctx.restore(); // restore saved state before clipping
+      ctx.restore();
 
-      // Draw outer rounded rectangle border
-      const borderX = marginX + offsetX;
-      const borderY = marginY + offsetY;
-      const borderWidth = columns * cellWidth;
-      const borderHeight = rows * cellHeight;
-      const radius = 16;
-
-      const ctx2 = canvas.getContext("2d");
-      if (ctx2) {
-        ctx2.strokeStyle = theme === "dark" ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
-        ctx2.lineWidth = 2;
-        ctx2.setLineDash([]); // solid border
-
-        ctx2.beginPath();
-        if (typeof ctx2.roundRect === "function") {
-          ctx2.roundRect(borderX, borderY, borderWidth, borderHeight, radius);
-        } else {
-          // fallback for browsers without roundRect
-          const r = radius;
-          ctx2.moveTo(borderX + r, borderY);
-          ctx2.lineTo(borderX + borderWidth - r, borderY);
-          ctx2.quadraticCurveTo(borderX + borderWidth, borderY, borderX + borderWidth, borderY + r);
-          ctx2.lineTo(borderX + borderWidth, borderY + borderHeight - r);
-          ctx2.quadraticCurveTo(borderX + borderWidth, borderY + borderHeight, borderX + borderWidth - r, borderY + borderHeight);
-          ctx2.lineTo(borderX + r, borderY + borderHeight);
-          ctx2.quadraticCurveTo(borderX, borderY + borderHeight, borderX, borderY + borderHeight - r);
-          ctx2.lineTo(borderX, borderY + r);
-          ctx2.quadraticCurveTo(borderX, borderY, borderX + r, borderY);
-        }
-        ctx2.stroke();
-      }
+      animationFrameRef.current = requestAnimationFrame(animate);
     };
 
-    requestAnimationFrame(draw);
-  }, [imageUrl, rows, columns, cellWidth, cellHeight, offsetX, offsetY, marginX, marginY, theme, imageRef, bgContainerRef, canvasRef]);
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [theme, rows, columns, cellWidth, cellHeight, offsetX, offsetY, marginX, marginY, dpr]);
 
   return (
     <div ref={bgContainerRef} className="my-auto bg-muted rounded-lg p-4 flex justify-center items-center">

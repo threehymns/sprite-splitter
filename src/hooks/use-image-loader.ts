@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 export function useImageLoader(initialUrl: string | null = null) {
   const [imageUrl, setImageUrl] = useState<string | null>(initialUrl);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const [isImageLoaded, setIsImageLoaded] = useState<boolean>(false);
 
   useEffect(() => {
     const handlePaste = (event: ClipboardEvent) => {
@@ -30,13 +31,16 @@ export function useImageLoader(initialUrl: string | null = null) {
   useEffect(() => {
     if (!imageUrl) {
       imageRef.current = null;
+      setIsImageLoaded(false);
       return;
     }
 
+    setIsImageLoaded(false);
     const img = new Image();
     img.src = imageUrl;
     img.onload = () => {
       imageRef.current = img;
+      setIsImageLoaded(true);
     };
   }, [imageUrl]);
 
@@ -48,5 +52,5 @@ export function useImageLoader(initialUrl: string | null = null) {
     reader.readAsDataURL(file);
   };
 
-  return { imageRef, imageUrl, setImageUrl, loadImage };
+  return { imageRef, imageUrl, setImageUrl, loadImage, isImageLoaded };
 }
