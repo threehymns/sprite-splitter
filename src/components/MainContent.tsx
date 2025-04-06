@@ -9,6 +9,7 @@ import SlicesGallery from "./SlicesGallery";
 interface MainContentProps {
   imageUrl: string | null;
   setImageUrl: (url: string | null) => void;
+  loadImage: (file: File) => void;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   bgContainerRef: RefObject<HTMLDivElement | null>;
   slices: string[];
@@ -27,6 +28,7 @@ interface MainContentProps {
 const MainContent: React.FC<MainContentProps> = ({
   imageUrl,
   setImageUrl,
+  loadImage,
   canvasRef,
   bgContainerRef,
   slices,
@@ -53,6 +55,7 @@ const MainContent: React.FC<MainContentProps> = ({
         <UploadPanel
           imageUrl={imageUrl}
           setImageUrl={setImageUrl}
+          loadImage={loadImage}
           canvasRef={canvasRef}
           bgContainerRef={bgContainerRef}
           imageRef={imageRef}

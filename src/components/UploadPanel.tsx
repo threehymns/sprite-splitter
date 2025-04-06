@@ -9,6 +9,7 @@ import { Button } from "./ui/button";
 interface UploadPanelProps {
   imageUrl: string | null;
   setImageUrl: (url: string | null) => void;
+  loadImage: (file: File) => void;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   bgContainerRef: React.RefObject<HTMLDivElement | null>;
   imageRef?: React.RefObject<HTMLImageElement | null>;
@@ -25,6 +26,7 @@ interface UploadPanelProps {
 const UploadPanel: React.FC<UploadPanelProps> = ({
   imageUrl,
   setImageUrl,
+  loadImage,
   canvasRef,
   bgContainerRef,
   imageRef,
@@ -38,11 +40,7 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
   marginY,
 }) => {
   const handleFileSelected = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      setImageUrl(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    loadImage(file);
   };
 
   return (

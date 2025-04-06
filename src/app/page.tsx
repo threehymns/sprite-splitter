@@ -2,7 +2,6 @@
 
 import React, { useRef } from "react";
 import { useImageLoader } from "@/hooks/use-image-loader";
-import { useClipboardImage } from "@/hooks/use-clipboard-image";
 import { useSpriteSlicer } from "@/hooks/use-sprite-slicer";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
@@ -13,8 +12,7 @@ import MainContent from "@/components/MainContent";
 
 
 export default function HomePage() {
-  const { imageUrl, setImageUrl } = useClipboardImage();
-  const { imageRef } = useImageLoader(imageUrl);
+  const { imageRef, imageUrl, setImageUrl, loadImage } = useImageLoader();
   const {
     cellWidth,
     cellHeight,
@@ -46,6 +44,7 @@ export default function HomePage() {
           <MainContent
             imageUrl={imageUrl}
             setImageUrl={setImageUrl}
+            loadImage={loadImage}
             canvasRef={canvasRef}
             bgContainerRef={bgContainerRef}
             slices={slices}
