@@ -20,7 +20,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${geist.variable}`}>
-      <body className="bg-background transition-colors user-select-none">
+      <body className="bg-background transition-colors select-none">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
