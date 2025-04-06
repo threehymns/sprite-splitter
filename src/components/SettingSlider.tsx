@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Label } from "./label";
-import { Slider } from "./slider";
+import { Label } from "./ui/label";
+import { Slider } from "./ui/slider";
 
 interface SidebarSliderProps<T extends number | null | undefined = number> {
   label: string;
@@ -37,7 +37,7 @@ export function SidebarSlider<T extends number | null | undefined = number>({
         max={max}
         step={step}
         value={[displayValue]}
-        onValueChange={([v]) => setValue(((v !== undefined ? v : initialValue) as unknown) as T)}
+        onValueChange={([v]) => setValue(((v ?? undefined ? v : initialValue) as unknown) as T)}
         onDoubleClick={() => {
           setValue(initialValue as T);
         }}
