@@ -13,11 +13,7 @@ export function useImageLoader(initialUrl: string | null = null) {
         if (item.type.includes("image")) {
           const file = item.getAsFile();
           if (file) {
-            const reader = new FileReader();
-            reader.onload = () => {
-              setImageUrl(reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            loadImage(file);
           }
           event.preventDefault();
           break;

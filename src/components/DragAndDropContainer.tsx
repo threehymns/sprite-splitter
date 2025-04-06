@@ -4,7 +4,7 @@ import React, { useState, useEffect, type ReactNode } from "react";
 
 interface DragAndDropContainerProps {
   children: ReactNode;
-  onDropImage?: (url: string) => void;
+  onDropImage?: (file: File) => void;
 }
 
 const DragAndDropContainer: React.FC<DragAndDropContainerProps> = ({ children, onDropImage }) => {
@@ -45,13 +45,9 @@ const DragAndDropContainer: React.FC<DragAndDropContainerProps> = ({ children, o
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
         const file = e.dataTransfer.files[0];
         if (file?.type.startsWith("image/")) {
-          const reader = new FileReader();
-          reader.onload = () => {
-            if (onDropImage) {
-              onDropImage(reader.result as string);
-            }
-          };
-          reader.readAsDataURL(file);
+          if (onDropImage) {
+            onDropImage(file);
+          }
         }
         e.dataTransfer.clearData();
       }

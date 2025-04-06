@@ -36,7 +36,7 @@ export default function HomePage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   return (
-    <DragAndDropContainer onDropImage={setImageUrl}>
+    <DragAndDropContainer onDropImage={loadImage}>
       <SidebarProvider>
         <SidebarInset>
           {/* Header */}
