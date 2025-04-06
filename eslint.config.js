@@ -32,6 +32,19 @@ export default tseslint.config(
     ],
   },
   },
+   {
+     files: ['src/components/ui/**/*.ts', 'src/components/ui/**/*.tsx'],
+     rules: {
+       "@typescript-eslint/prefer-nullish-coalescing": "off",
+       "@typescript-eslint/no-unnecessary-type-assertion": "off",
+       "@typescript-eslint/no-unsafe-assignment": "off",
+       "@typescript-eslint/no-unsafe-member-access": "off",
+       "@typescript-eslint/no-unsafe-argument": "off",
+       "@typescript-eslint/restrict-template-expressions": "off",
+       "@typescript-eslint/consistent-type-imports": "off",
+       "@typescript-eslint/consistent-indexed-object-style": "off"
+     }
+   },
   {
 		linterOptions: {
 			reportUnusedDisableDirectives: true

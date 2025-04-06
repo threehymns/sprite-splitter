@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarProvider, SidebarSeparator, SidebarTrigger } from "@/components/ui/sidebar";
 import { SidebarSlider } from "@/components/ui/sidebar-slider";
 import { Download, Sun, Moon, Upload } from "lucide-react";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 export default function HomePage() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -29,9 +28,6 @@ export default function HomePage() {
   const [isDragging, setIsDragging] = useState(false);
 
   const bgContainerRef = useRef<HTMLDivElement | null>(null);
-
-  const [imageNaturalWidth, setImageNaturalWidth] = useState<number | null>(null);
-  const [imageNaturalHeight, setImageNaturalHeight] = useState<number | null>(null);
 
   const handleSetColumns: React.Dispatch<React.SetStateAction<number | null>> = (value) => {
     if (typeof value === "function") {
@@ -87,10 +83,9 @@ export default function HomePage() {
     const handlePaste = (event: ClipboardEvent) => {
       if (!event.clipboardData) return;
       const items = event.clipboardData.items;
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
+      for (const item of items) {
         if (!item) continue;
-        if (item.type.indexOf("image") !== -1) {
+        if (item.type.includes("image")) {
           const file = item.getAsFile();
           if (file) {
             const reader = new FileReader();
@@ -150,8 +145,6 @@ export default function HomePage() {
     img.onload = () => {
       imageRef.current = img;
       setImageLoaded(true);
-      setImageNaturalWidth(img.naturalWidth);
-      setImageNaturalHeight(img.naturalHeight);
     };
   }, [imageUrl]);
 
@@ -249,7 +242,7 @@ export default function HomePage() {
 
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
         const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith("image/")) {
+        if (file?.type.startsWith("image/")) {
           const reader = new FileReader();
           reader.onload = () => {
             setImageUrl(reader.result as string);
