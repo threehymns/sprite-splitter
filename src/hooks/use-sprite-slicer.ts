@@ -67,13 +67,11 @@ export function sliceImage(
   };
 
   const debounceTime = 100;
-  if (!window._sliceImageDebounce) {
-    window._sliceImageDebounce = {
-      timeout: null,
-      lastResult: [],
-      lastArgs: null,
-    };
-  }
+  window._sliceImageDebounce ??= {
+    timeout: null,
+    lastResult: [],
+    lastArgs: null,
+  };
   const state = window._sliceImageDebounce as {
     timeout: ReturnType<typeof setTimeout> | null;
     lastResult: string[];
@@ -156,7 +154,7 @@ interface UseSpriteSlicerProps {
   isImageLoaded: boolean;
 }
 
-export function useSpriteSlicer({ imageRef, imageUrl, isImageLoaded }: UseSpriteSlicerProps) {
+export function useSpriteSlicer({ imageRef, imageUrl: _imageUrl, isImageLoaded }: UseSpriteSlicerProps) {
   const [cellWidth, setCellWidth] = useState<number>(32);
   const [cellHeight, setCellHeight] = useState<number>(32);
   const [offsetX, setOffsetX] = useState<number>(0);
@@ -232,7 +230,6 @@ export function useSpriteSlicer({ imageRef, imageUrl, isImageLoaded }: UseSprite
     if (cellHeight !== h) setCellHeight(h);
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   if (!isImageLoaded && slices.length !== 0) {
     setSlices([]);
   }

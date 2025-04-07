@@ -37,7 +37,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
   setOffsetY,
 }) => {
 
-  function safeNumber(value: any, fallback = 0): number {
+  function safeNumber(value: string | number | null | undefined, fallback = 0): number {
     const num = Number(value);
     return Number.isFinite(num) ? num : fallback;
   }
@@ -118,9 +118,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
     canvas.height = img.height * dpr;
 
     // Create or resize offscreen static canvas
-    if (!staticCanvasRef.current) {
-      staticCanvasRef.current = document.createElement("canvas");
-    }
+    staticCanvasRef.current ??= document.createElement("canvas");
     const staticCanvas = staticCanvasRef.current;
     staticCanvas.width = img.width * dpr;
     staticCanvas.height = img.height * dpr;
@@ -154,7 +152,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
     const ctx = canvas.getContext("2d");
     // Do not scale main canvas context; scale drawing operations manually
     ctxRef.current = ctx;
-  }, [imageUrl, rows, columns, cellWidth, cellHeight, offsetX, offsetY, marginX, marginY, theme, imageRef, bgContainerRef, canvasRef, dprRefresh]);
+  }, [imageUrl, rows, columns, cellWidth, cellHeight, offsetX, offsetY, marginX, marginY, theme, imageRef, bgContainerRef, canvasRef, dprRefresh, dpr]);
 
   // Animate dashed overlay
   useEffect(() => {
