@@ -139,8 +139,8 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
     const totalGridWidth = (columns ?? 1) * (cellWidth ?? 0) * dpr;
     const totalGridHeight = (rows ?? 1) * (cellHeight ?? 0) * dpr;
 
-    const borderWidth = totalGridWidth * dpr;
-    const borderHeight = totalGridHeight * dpr;
+    const borderWidth = totalGridWidth;
+    const borderHeight = totalGridHeight;
     const radius = 20 * dpr;
 
     staticCtx.strokeStyle = theme === "dark" ? "#fff" : "#000";
