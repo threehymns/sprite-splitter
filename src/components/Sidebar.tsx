@@ -63,46 +63,28 @@ const Sidebar: React.FC<SidebarProps> = ({
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <div className="flex flex-col gap-8 w-full p-2">
+            <div className="flex flex-col gap-6 w-full p-2">
               <SidebarSlider
-                label="Offset X"
+                label="Offset"
                 unit="px"
-                value={[offsetX, setOffsetX, 0]}
+                linked={false}
+                dualValues={[[offsetX, setOffsetX, 0], [offsetY, setOffsetY, 0]]}
                 min={-100}
                 max={100}
               />
               <SidebarSlider
-                label="Offset Y"
+                label="Margin"
                 unit="px"
-                value={[offsetY, setOffsetY, 0]}
+                dualValues={[[marginX, setMarginX, 0], [marginY, setMarginY, 0]]}
                 min={-100}
                 max={100}
               />
+              <SidebarSeparator />
               <SidebarSlider
-                label="Margin X"
-                unit="px"
-                value={[marginX, setMarginX, 0]}
-                min={0}
-                max={100}
-              />
-              <SidebarSlider
-                label="Margin Y"
-                unit="px"
-                value={[marginY, setMarginY, 0]}
-                min={0}
-                max={100}
-              />
-              <SidebarSlider
-                label="Columns"
-                value={[columns, setColumns, 4]}
+                label="Grid Size"
+                dualValues={[[columns, setColumns, 4], [rows, setRows, 4]]}
                 min={1}
-                max={20}
-              />
-              <SidebarSlider
-                label="Rows"
-                value={[rows, setRows, 4]}
-                min={1}
-                max={20}
+                max={10}
               />
             </div>
           </SidebarGroupContent>
