@@ -52,6 +52,8 @@ export default function HomePage() {
             imageRef={imageRef}
             rows={rows}
             columns={columns}
+            setOffsetX={setOffsetX}
+            setOffsetY={setOffsetY}
             cellWidth={cellWidth}
             cellHeight={cellHeight}
             offsetX={offsetX}

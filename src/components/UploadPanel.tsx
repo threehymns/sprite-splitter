@@ -17,6 +17,8 @@ interface UploadPanelProps {
   columns?: number | null;
   cellWidth?: number;
   cellHeight?: number;
+  setOffsetX?: (value: number) => void;
+  setOffsetY?: (value: number) => void;
   offsetX?: number;
   offsetY?: number;
   marginX?: number;
@@ -34,6 +36,8 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
   columns,
   cellWidth,
   cellHeight,
+  setOffsetX,
+  setOffsetY,
   offsetX,
   offsetY,
   marginX,
@@ -76,6 +80,8 @@ const UploadPanel: React.FC<UploadPanelProps> = ({
             offsetY={offsetY}
             marginX={marginX}
             marginY={marginY}
+            setOffsetX={setOffsetX}
+            setOffsetY={setOffsetY}
           />
         )}
       </CardContent>

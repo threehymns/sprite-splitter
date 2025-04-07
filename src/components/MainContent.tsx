@@ -19,6 +19,12 @@ interface MainContentProps {
   columns?: number | null;
   cellWidth?: number;
   cellHeight?: number;
+  setRows?: (value: number) => void;
+  setColumns?: (value: number) => void;
+  setOffsetX?: (value: number) => void;
+  setOffsetY?: (value: number) => void;
+  setMarginX?: (value: number) => void;
+  setMarginY?: (value: number) => void;
   offsetX?: number;
   offsetY?: number;
   marginX?: number;
@@ -38,6 +44,8 @@ const MainContent: React.FC<MainContentProps> = ({
   columns,
   cellWidth,
   cellHeight,
+  setOffsetX,
+  setOffsetY,
   offsetX,
   offsetY,
   marginX,
@@ -61,6 +69,8 @@ const MainContent: React.FC<MainContentProps> = ({
           imageRef={imageRef}
           rows={rows}
           columns={columns}
+          setOffsetX={setOffsetX}
+          setOffsetY={setOffsetY}
           cellWidth={cellWidth}
           cellHeight={cellHeight}
           offsetX={offsetX}

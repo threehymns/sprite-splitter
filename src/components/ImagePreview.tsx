@@ -14,9 +14,11 @@ interface ImagePreviewProps {
   offsetY?: number;
   marginX?: number;
   marginY?: number;
+  setOffsetX?: (value: number) => void;
+  setOffsetY?: (value: number) => void;
 }
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const ImagePreview: React.FC<ImagePreviewProps> = ({
   canvasRef,
@@ -31,46 +33,87 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
   marginX,
   marginY,
   imageRef,
+  setOffsetX,
+  setOffsetY,
 }) => {
-  const { theme } = useTheme();
+
+  function safeNumber(value: any, fallback = 0): number {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : fallback;
+  }
 
   const dpr = window.devicePixelRatio || 1;
+
+  const [dprRefresh, setDprRefresh] = useState(false);
+  const { theme } = useTheme();
 
   const dashOffsetRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
   const staticCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const initialOffsetRef = useRef<{ x: number; y: number }>({ x: offsetX ?? 0, y: offsetY ?? 0 });
+
+  /** Utility: get canvas coordinates from event */
+  function getCanvasCoords(
+    e: MouseEvent | React.MouseEvent<HTMLCanvasElement, MouseEvent>,
+    canvas: HTMLCanvasElement | null,
+    dpr: number
+  ) {
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * dpr,
+      y: (e.clientY - rect.top) * dpr,
+    };
+  }
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement, MouseEvent>) => {
+    if (!canvasRef.current) return;
+    const { x, y } = getCanvasCoords(e, canvasRef.current, dpr);
+    isDraggingRef.current = true;
+    dragStartRef.current = { x, y };
+    initialOffsetRef.current = { x: offsetX ?? 0, y: offsetY ?? 0 };
+  };
+
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current || !dragStartRef.current) return;
+      if (!canvasRef.current) return;
+      const { x, y } = getCanvasCoords(e, canvasRef.current, dpr);
+      const dx = (x - dragStartRef.current.x) / dpr;
+      const dy = (y - dragStartRef.current.y) / dpr;
+      setOffsetX?.(initialOffsetRef.current.x + dx * dpr);
+      setOffsetY?.(initialOffsetRef.current.y + dy * dpr);
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      dragStartRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dpr, setOffsetX, setOffsetY, canvasRef, offsetX, offsetY]);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   // Draw static content once when dependencies change
   useEffect(() => {
-    if (
-      !imageRef?.current ||
-      !rows ||
-      !columns ||
-      cellWidth === undefined ||
-      cellHeight === undefined ||
-      offsetX === undefined ||
-      offsetY === undefined ||
-      marginX === undefined ||
-      marginY === undefined
-    ) {
-      return;
-    }
 
-    const img = imageRef.current;
+    const img = imageRef?.current;
 
     // Skip rendering if image not loaded yet
-    if (!img.width || !img.height) {
+    if (!img?.width || !img?.height) {
       return;
     }
 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Handle high DPI displays
-    const dpr = window.devicePixelRatio || 1;
-
-    // Resize canvas for high DPI
     canvas.width = img.width * dpr;
     canvas.height = img.height * dpr;
 
@@ -86,22 +129,15 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
     const staticCtx = staticCanvas.getContext("2d");
     if (!staticCtx) return;
 
-    // Do not scale static canvas context; instead scale drawing operations manually for high DPI
-    staticCtx.fillStyle = "rgba(0,0,0,0)";
-    staticCtx.fillRect(0, 0, staticCanvas.width, staticCanvas.height);
-
     // Draw image
     staticCtx.drawImage(img, 0, 0, img.width * dpr, img.height * dpr);
 
-    // Do NOT draw the dashed grid here anymore.
-    // The animated dashed grid will be drawn in the animation loop only.
-
     // Draw outer rounded rectangle border
-    const borderX = (marginX + offsetX) * dpr;
-    const borderY = (marginY + offsetY) * dpr;
+    const borderX = ((marginX ?? 0) * dpr + (offsetX ?? 0) * dpr);
+    const borderY = ((marginY ?? 0) * dpr + (offsetY ?? 0) * dpr);
 
-    const totalGridWidth = columns * cellWidth;
-    const totalGridHeight = rows * cellHeight;
+    const totalGridWidth = (columns ?? 1) * (cellWidth ?? 0) * dpr;
+    const totalGridHeight = (rows ?? 1) * (cellHeight ?? 0) * dpr;
 
     const borderWidth = totalGridWidth * dpr;
     const borderHeight = totalGridHeight * dpr;
@@ -109,30 +145,16 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
 
     staticCtx.strokeStyle = theme === "dark" ? "#fff" : "#000";
     staticCtx.lineWidth = 1 * dpr;
-    staticCtx.setLineDash([]);
 
     staticCtx.beginPath();
-    if (typeof staticCtx.roundRect === "function") {
-      staticCtx.roundRect(borderX, borderY, borderWidth, borderHeight, radius);
-    } else {
-      const r = radius;
-      staticCtx.moveTo(borderX + r, borderY);
-      staticCtx.lineTo(borderX + borderWidth - r, borderY);
-      staticCtx.quadraticCurveTo(borderX + borderWidth, borderY, borderX + borderWidth, borderY + r);
-      staticCtx.lineTo(borderX + borderWidth, borderY + borderHeight - r);
-      staticCtx.quadraticCurveTo(borderX + borderWidth, borderY + borderHeight, borderX + borderWidth - r, borderY + borderHeight);
-      staticCtx.lineTo(borderX + r, borderY + borderHeight);
-      staticCtx.quadraticCurveTo(borderX, borderY + borderHeight, borderX, borderY + borderHeight - r);
-      staticCtx.lineTo(borderX, borderY + r);
-      staticCtx.quadraticCurveTo(borderX, borderY, borderX + r, borderY);
-    }
+    staticCtx.roundRect(borderX, borderY, borderWidth, borderHeight, radius);
     staticCtx.stroke();
 
     // Cache main canvas context
     const ctx = canvas.getContext("2d");
     // Do not scale main canvas context; scale drawing operations manually
     ctxRef.current = ctx;
-  }, [imageUrl, rows, columns, cellWidth, cellHeight, offsetX, offsetY, marginX, marginY, theme, imageRef, bgContainerRef, canvasRef]);
+  }, [imageUrl, rows, columns, cellWidth, cellHeight, offsetX, offsetY, marginX, marginY, theme, imageRef, bgContainerRef, canvasRef, dprRefresh]);
 
   // Animate dashed overlay
   useEffect(() => {
@@ -156,35 +178,26 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
       dashOffsetRef.current = (dashOffsetRef.current + 0.2 * dpr) % (16 * dpr);
       ctx.lineDashOffset = dashOffsetRef.current;
 
-      const marginXVal = (Number.isFinite(Number(marginX)) ? Number(marginX) : 0) * dpr;
-      const marginYVal = (Number.isFinite(Number(marginY)) ? Number(marginY) : 0) * dpr;
-      const offsetXVal = (Number.isFinite(Number(offsetX)) ? Number(offsetX) : 0) * dpr;
-      const offsetYVal = (Number.isFinite(Number(offsetY)) ? Number(offsetY) : 0) * dpr;
+      const columnsVal = safeNumber(columns, 1);
+      const rowsVal = safeNumber(rows, 1);
 
-      const cellWidthRaw = Number.isFinite(Number(cellWidth)) ? Number(cellWidth) : 0;
-      const cellHeightRaw = Number.isFinite(Number(cellHeight)) ? Number(cellHeight) : 0;
-      const columnsVal = Number.isFinite(Number(columns)) ? Number(columns) : 0;
-      const rowsVal = Number.isFinite(Number(rows)) ? Number(rows) : 0;
+      const cellWidthVal = safeNumber(cellWidth) * dpr;
+      const cellHeightVal = safeNumber(cellHeight) * dpr;
 
-      const totalGridWidth = columnsVal * cellWidthRaw;
-      const totalGridHeight = rowsVal * cellHeightRaw;
+      const totalGridWidth = columnsVal * cellWidthVal;
+      const totalGridHeight = rowsVal * cellHeightVal;
 
-      const cellWidthVal = cellWidthRaw * dpr;
-      const cellHeightVal = cellHeightRaw * dpr;
-      const totalGridWidthScaled = totalGridWidth * dpr;
-      const totalGridHeightScaled = totalGridHeight * dpr;
-
-      const clipX = marginXVal + offsetXVal;
-      const clipY = marginYVal + offsetYVal;
-      const clipWidth = totalGridWidthScaled;
-      const clipHeight = totalGridHeightScaled;
+      const clipX = safeNumber(marginX) * dpr + safeNumber(offsetX) * dpr;
+      const clipY = safeNumber(marginY) * dpr + safeNumber(offsetY) * dpr;
+      const clipWidth = totalGridWidth;
+      const clipHeight = totalGridHeight;
 
       ctx.beginPath();
       ctx.rect(clipX, clipY, clipWidth, clipHeight);
       ctx.clip();
 
       for (let i = 1; i < columnsVal; i++) {
-        const x = marginXVal + offsetXVal + i * cellWidthVal;
+        const x = safeNumber(marginX) * dpr + safeNumber(offsetX) * dpr + i * cellWidthVal;
         ctx.beginPath();
         ctx.moveTo(x, clipY);
         ctx.lineTo(x, clipY + clipHeight);
@@ -192,7 +205,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
       }
 
       for (let i = 1; i < rowsVal; i++) {
-        const y = marginYVal + offsetYVal + i * cellHeightVal;
+        const y = safeNumber(marginY) * dpr + safeNumber(offsetY) * dpr + i * cellHeightVal;
         ctx.beginPath();
         ctx.moveTo(clipX, y);
         ctx.lineTo(clipX + clipWidth, y);
@@ -212,6 +225,20 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
       }
     };
   }, [theme, rows, columns, cellWidth, cellHeight, offsetX, offsetY, marginX, marginY, dpr]);
+  useEffect(() => {
+    const handleDPRChange = () => {
+      setDprRefresh(prev => !prev);
+    };
+
+    // Listen for DPR changes (this event is not supported in all browsers)
+    if (window.matchMedia) {
+      const mql = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+      mql.addEventListener('change', handleDPRChange);
+      return () => {
+        mql.removeEventListener('change', handleDPRChange);
+      };
+    }
+  }, []);
 
   return (
     <div ref={bgContainerRef} className="my-auto bg-muted rounded-lg p-4 flex justify-center items-center">
@@ -222,7 +249,11 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({
         style={{ display: "none" }}
       />
       <div className="flex justify-center items-center w-full">
-        <canvas ref={canvasRef} className="max-w-full max-h-full object-contain" />
+        <canvas
+          ref={canvasRef}
+          className="max-w-full max-h-full object-contain"
+          onMouseDown={handleMouseDown}
+        />
       </div>
     </div>
   );
